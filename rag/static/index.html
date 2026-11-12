@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AGenNext Agent-Rag</title>
+  <style>
+    :root { --bg:#020617; --panel:#0f172a; --line:#1e293b; --text:#e5e7eb; --muted:#94a3b8; --accent:#1d4ed8;
+            --good:#86efac; --warn:#fdba74; --bad:#fca5a5; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: Inter, Arial, sans-serif; background:var(--bg); color:var(--text); }
+    .layout { display:grid; grid-template-columns: 280px 1fr; min-height:100vh; }
+    aside { background:var(--panel); border-right:1px solid var(--line); padding:24px; }
+    main { padding:32px; min-width:0; }
+    .brand { font-size:22px; font-weight:800; margin-bottom:4px; }
+    h1 { margin:0 0 6px; font-size:32px; } h2 { font-size:18px; margin:0 0 12px; } h3 { font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin:22px 0 8px; }
+    .muted { color:var(--muted); } .small { font-size:12px; }
+    .card { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:20px; margin-top:18px; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    input, select, textarea, button { font:inherit; color:var(--text); background:#020617; border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+    textarea { width:100%; min-height:70px; resize:vertical; }
+    #q { flex:1; min-width:220px; }
+    button { background:var(--accent); border-color:var(--accent); cursor:pointer; font-weight:600; }
+    button.ghost { background:transparent; }
+    button:disabled { opacity:.6; cursor:wait; }
+    .pill { display:inline-block; padding:3px 9px; border-radius:999px; background:var(--line); color:#cbd5e1; font-size:12px; margin:2px 4px 2px 0; }
+    .allow { color:var(--good); } .quarantine { color:var(--warn); } .block { color:var(--bad); }
+    .verified { color:var(--good); } .internal { color:#93c5fd; } .external { color:var(--warn); }
+    .answer { font-size:17px; line-height:1.6; }
+    .answer sup { color:#93c5fd; cursor:pointer; }
+    .ev { border:1px solid var(--line); border-radius:12px; padding:14px; margin-top:10px; }
+    .ev pre { white-space:pre-wrap; word-break:break-word; font-family:inherit; margin:8px 0 0; color:#cbd5e1; font-size:14px; max-height:180px; overflow:auto; }
+    .ev.hl { border-color:#93c5fd; }
+    .stat { display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid var(--line); font-size:14px; }
+    .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:18px; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    td, th { text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
+    th { color:var(--muted); font-weight:500; }
+    code { font-size:12px; color:#cbd5e1; }
+    .rule { border-left:3px solid var(--warn); padding-left:10px; margin-top:8px; }
+    .rule.blocked { border-color:var(--bad); }
+    a { color:#93c5fd; }
+    @media (max-width: 900px) { .layout, .grid2 { grid-template-columns:1fr; } main { padding:16px; } aside { padding:16px; } }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside>
+    <div class="brand">AGenNext</div>
+    <div class="muted small">Agent-Rag · governed retrieval</div>
+    <h3>Index</h3>
+    <div id="health" class="small muted">Loading…</div>
+    <h3>Sources</h3>
+    <div id="sources" class="small"></div>
+    <h3>Add source</h3>
+    <form id="addForm">
+      <input id="sid" placeholder="source_id" required style="width:100%;margin-bottom:6px" />
+      <select id="stier" style="width:100%;margin-bottom:6px">
+        <option value="internal">internal</option><option value="verified">verified</option><option value="external">external</option>
+      </select>
+      <textarea id="stext" placeholder="Markdown or text" required></textarea>
+      <button style="width:100%;margin-top:6px">Index source</button>
+    </form>
+    <p class="small muted" style="margin-top:22px">Back to <a href="../app.html">Governance dashboard</a></p>
+  </aside>
+
+  <main>
+    <h1>Ask the knowledge graph</h1>
+    <p class="muted">Vector, hybrid and GraphRAG-style retrieval with Guard and Cognitive Guard screening. Output is a <em>context candidate</em> for Agent-Context — never automatically trusted.</p>
+
+    <form id="askForm" class="card">
+      <div class="row">
+        <input id="q" placeholder="e.g. What does Agent-Guard do?" required />
+        <select id="mode" title="Retrieval mode">
+          <option value="auto">auto plan</option><option value="hybrid">hybrid</option><option value="vector">vector</option>
+          <option value="lexical">lexical</option><option value="graph_local">graph local</option><option value="graph_global">graph global</option>
+        </select>
+        <select id="tier" title="Minimum source trust">
+          <option value="">any trust</option><option value="internal">≥ internal</option><option value="verified">verified only</option>
+        </select>
+        <input id="k" type="number" min="1" max="50" value="6" style="width:70px" title="top_k" />
+        <button id="askBtn">Ask</button>
+      </div>
+      <div class="row small muted" style="margin-top:10px">Try:
+        <a href="#" class="ex">Is retrieval output trusted context?</a> ·
+        <a href="#" class="ex">What does Agent-Cognitive-Guard screen?</a> ·
+        <a href="#" class="ex">Give an overview of the main components</a> ·
+        <a href="#" class="ex">kill switch for finance agents</a>
+      </div>
+    </form>
+
+    <div id="out"></div>
+
+    <div class="card">
+      <h2>Graph communities</h2>
+      <div id="communities" class="small muted">Loading…</div>
+    </div>
+  </main>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const clean = (t) => esc(t).replace(/^§ /gm, "▸ ");
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts });
+  if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+  return r.json();
+}
+
+async function refresh() {
+  const [h, src, g] = await Promise.all([api("/healthz"), api("/v1/sources"), api("/v1/graph?limit=60")]);
+  $("#health").innerHTML = ["sources","chunks","entities","relations","communities"].map(k =>
+    `<div class="stat"><span>${k}</span><b>${h[k]}</b></div>`).join("") +
+    `<div class="stat"><span>generator</span><code>${esc(h.generator)}</code></div><div class="stat"><span>embedder</span><code>${esc(h.embedder)}</code></div>`;
+  $("#sources").innerHTML = src.map(s => `<div class="stat"><span>${esc(s.source_id)}</span><span class="${s.trust_tier}">${s.trust_tier}</span></div>`).join("");
+  $("#communities").innerHTML = g.communities.length ? g.communities.map(c => `
+    <div class="ev"><b style="color:var(--text)">${esc(c.title)}</b> <span class="pill">${c.entity_ids.length} entities</span><span class="pill">rank ${c.rank}</span>
+    <pre>${esc(c.summary)}</pre></div>`).join("") : "No communities yet.";
+}
+
+function evidenceCard(e, i) {
+  const findings = e.findings.map(f => `<div class="rule ${f.decision === "block" ? "blocked" : ""}"><b class="${f.decision}">${esc(f.rule)}</b> <span class="muted">· ${esc(f.guard)} · ${esc(f.detail)}</span></div>`).join("");
+  return `<div class="ev" id="ev-${i ?? esc(e.evidence_id)}">
+    <div class="row">${i ? `<b>[${i}]</b>` : ""}<b>${esc(e.title)}</b>
+      <span class="pill">${esc(e.evidence_id)}</span><span class="pill ${e.trust_tier}">${e.trust_tier}</span>
+      <span class="pill ${e.decision}">${e.decision}</span>${e.retrievers.map(r => `<span class="pill">${esc(r)}</span>`).join("")}
+      <span class="small muted">score ${e.score.toFixed(4)} · sha256 <code>${e.content_hash.slice(0, 12)}…</code></span></div>
+    ${findings}<pre>${clean(e.text)}</pre></div>`;
+}
+
+async function ask(ev) {
+  ev?.preventDefault();
+  const btn = $("#askBtn"); btn.disabled = true; btn.textContent = "Retrieving…";
+  const body = { query: $("#q").value, mode: $("#mode").value, top_k: +$("#k").value, agent_id: "agent:rag-console" };
+  if ($("#tier").value) body.min_trust_tier = $("#tier").value;
+  try {
+    const a = await api("/v1/answer", { method: "POST", body: JSON.stringify(body) });
+    const env = a.envelope;
+    const [trace, verify] = await Promise.all([api(`/v1/traces?trace_id=${env.trace_id}`), api("/v1/traces/verify")]);
+    const answer = esc(a.answer).replace(/\[(\d+)\]/g, (m, n) => `<sup data-n="${n}">[${n}]</sup>`);
+    const held = [...env.blocked, ...env.quarantined];
+    $("#out").innerHTML = `
+      <div class="card">
+        <div class="row" style="justify-content:space-between"><h2>Grounded answer</h2>
+          <div><span class="pill">${esc(a.generator)}</span><span class="pill ${a.groundedness === 1 ? "allow" : "quarantine"}">groundedness ${(a.groundedness * 100).toFixed(0)}%</span></div></div>
+        <div class="answer">${answer}</div>
+        <p class="small muted">Plan: <b>${env.plan.mode}</b> — ${esc(env.plan.rationale)}${env.plan.matched_entities.length ? ` · entities: ${env.plan.matched_entities.map(esc).join(", ")}` : ""} · ${env.timings_ms.total} ms</p>
+      </div>
+      <div class="grid2">
+        <div class="card"><h2>Context candidate <span class="pill">trusted: false</span> <span class="pill">→ Agent-Context</span></h2>
+          <p class="small muted">${env.evidence.length} allowed items · ~${env.context_candidate.token_estimate} tokens</p>
+          ${env.evidence.map((e, i) => evidenceCard(e, i + 1)).join("") || "<p class='muted'>Nothing passed the guards.</p>"}</div>
+        <div>
+          <div class="card"><h2>Held back by guards</h2>
+            ${held.length ? held.map(e => evidenceCard(e)).join("") : "<p class='muted small'>No retrieved content was blocked or quarantined.</p>"}</div>
+          <div class="card"><h2>Agent-Traces <span class="pill ${verify.valid ? "allow" : "block"}">chain ${verify.valid ? "verified" : "BROKEN"} · ${verify.events_checked} events</span></h2>
+            <table><tr><th>#</th><th>Stage</th><th>Hash</th></tr>
+            ${trace.map(t => `<tr><td>${t.seq}</td><td>${esc(t.stage)}</td><td><code>${t.hash.slice(0, 16)}…</code></td></tr>`).join("")}</table>
+            <p class="small muted">trace_id <code>${esc(env.trace_id)}</code></p></div>
+        </div>
+      </div>`;
+    document.querySelectorAll("sup[data-n]").forEach(s => s.onclick = () => {
+      const el = $(`#ev-${s.dataset.n}`); if (!el) return;
+      document.querySelectorAll(".ev.hl").forEach(x => x.classList.remove("hl"));
+      el.classList.add("hl"); el.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  } catch (e) {
+    $("#out").innerHTML = `<div class="card block">Request failed: ${esc(e.message)}</div>`;
+  } finally { btn.disabled = false; btn.textContent = "Ask"; }
+}
+
+$("#askForm").onsubmit = ask;
+document.querySelectorAll(".ex").forEach(a => a.onclick = (e) => { e.preventDefault(); $("#q").value = a.textContent; ask(); });
+$("#addForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const text = $("#stext").value;
+  const title = (text.split("\n").find(l => l.startsWith("#")) || $("#sid").value).replace(/^#+\s*/, "");
+  try {
+    await api("/v1/sources", { method: "POST", body: JSON.stringify({ source_id: $("#sid").value, title, text, trust_tier: $("#stier").value }) });
+    e.target.reset(); refresh();
+  } catch (err) { alert(err.message); }
+};
+refresh().catch(e => $("#health").textContent = `API unreachable: ${e.message}`);
+</script>
+</body>
+</html>
