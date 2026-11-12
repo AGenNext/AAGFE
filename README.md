@@ -15,6 +15,10 @@ It helps enterprises understand what agents can access, what they actually did, 
 - **Agent Access Review** — certifies, constrains, or revokes agent access across tools, data, SaaS apps, and delegated authority.
 - **Agent Trace** — records tamper-evident evidence for actions, authorization decisions, secret access, approvals, and policy outcomes.
 
+## Agent-Rag service
+
+`rag/` contains a runnable Agent-Rag service: governed vector, hybrid and GraphRAG-style retrieval with Guard/Cognitive-Guard screening, provenance hashes and hash-chained traces. See [`rag/README.md`](rag/README.md).
+
 ## Standards-aligned architecture
 
 AGenNext is designed around open and pluggable governance primitives:

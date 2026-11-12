@@ -1,0 +1,25 @@
+[project]
+name = "agent-rag"
+version = "0.1.0"
+description = "Governed vector, hybrid and graph retrieval for AGenNext agents"
+requires-python = ">=3.10"
+dependencies = [
+  "fastapi>=0.110",
+  "pydantic>=2.6",
+  "uvicorn>=0.27",
+]
+
+[project.optional-dependencies]
+claude = ["anthropic>=2.8"]
+dev = ["pytest>=8", "httpx>=0.27"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["agent_rag"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
